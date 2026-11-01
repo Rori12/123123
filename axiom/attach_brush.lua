@@ -3,13 +3,9 @@
 -- Paste into Tool Options of the Script Brush. All settings appear there.
 -- Uses only functions from the official Axiom docs.
 
-target1 = $blockState(Target 1,oak_leaves)$
-target2 = $blockState(Target 2,birch_leaves)$
-target3 = $blockState(Target 3,spruce_leaves)$
-target4 = $blockState(Target 4,jungle_leaves)$
-target5 = $blockState(Target 5,acacia_leaves)$
-target6 = $blockState(Target 6,dark_oak_leaves)$
-anySolid = $boolean(Any solid block is a target,false)$
+allLeaves = $boolean(All leaves are targets,true)$
+target1   = $blockState(Custom target,oak_planks)$
+anySolid  = $boolean(Any solid block is a target,false)$
 
 count = $int(Blocks to use,6,1,6)$
 b1 = $blockState(Block 1,oak_button)$
@@ -38,9 +34,19 @@ function rand(px, py, pz, salt)
   return v - math.floor(v)
 end
 
+-- Leaves are compared with blocks.<name>: this is what getBlock returns.
+-- (A block chosen in the window may carry other properties and not match.)
+function isLeaves(b)
+  return b == blocks.oak_leaves or b == blocks.spruce_leaves
+      or b == blocks.birch_leaves or b == blocks.jungle_leaves
+      or b == blocks.acacia_leaves or b == blocks.dark_oak_leaves
+      or b == blocks.mangrove_leaves or b == blocks.cherry_leaves
+      or b == blocks.azalea_leaves or b == blocks.flowering_azalea_leaves
+end
+
 function isTarget(b)
-  if b == target1 or b == target2 or b == target3 then return true end
-  if b == target4 or b == target5 or b == target6 then return true end
+  if allLeaves and isLeaves(b) then return true end
+  if b == target1 then return true end
   if anySolid and not isAir(b) and isSolid(b) then return true end
   return false
 end
