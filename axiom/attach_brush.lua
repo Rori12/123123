@@ -1,68 +1,32 @@
--- Axiom Script Brush: блоки, прикреплённые к другим блокам
--- По умолчанию: кнопки разных цветов на листве, повёрнутые к листве.
--- Вставьте файл в Tool Options кисти Script Brush; все настройки
--- (блоки, плотность, стороны) появятся там же. Сохраняйте варианты
--- через Presets в Axiom.
+-- Axiom Script Brush: blocks attached to other blocks.
+-- Default: buttons of different woods on leaves, turned towards the leaves.
+-- Paste into Tool Options of the Script Brush. All settings appear there.
+-- Uses only functions from the official Axiom docs.
 
-target    = $blockState(Цель,oak_leaves)$
-anyLeaves = $boolean(Любая листва,true)$
+target1 = $blockState(Target 1,oak_leaves)$
+target2 = $blockState(Target 2,birch_leaves)$
+target3 = $blockState(Target 3,spruce_leaves)$
 
-count = $int(Сколько блоков из списка,6,1,6)$
-b1 = $blockState(Блок 1,oak_button)$
-b2 = $blockState(Блок 2,spruce_button)$
-b3 = $blockState(Блок 3,birch_button)$
-b4 = $blockState(Блок 4,jungle_button)$
-b5 = $blockState(Блок 5,acacia_button)$
-b6 = $blockState(Блок 6,dark_oak_button)$
+count = $int(Blocks to use,6,1,6)$
+b1 = $blockState(Block 1,oak_button)$
+b2 = $blockState(Block 2,spruce_button)$
+b3 = $blockState(Block 3,birch_button)$
+b4 = $blockState(Block 4,jungle_button)$
+b5 = $blockState(Block 5,acacia_button)$
+b6 = $blockState(Block 6,dark_oak_button)$
 
-chance   = $float(Плотность,0.35,0,1)$
-seed     = $int(Сид узора,1,1,1000)$
-onTop    = $boolean(Ставить сверху,true)$
-onBottom = $boolean(Ставить снизу,true)$
-onSides  = $boolean(Ставить по бокам,true)$
-lookAt   = $boolean(Повернуть лицом к цели,false)$
+mode     = $int(Mode 1 button 2 facing 3 none,1,1,3)$
+chance   = $float(Density,0.35,0,1)$
+seed     = $int(Pattern seed,1,1,1000)$
+onTop    = $boolean(Place on top,true)$
+onBottom = $boolean(Place below,true)$
+onSides  = $boolean(Place on sides,true)$
+lookAt   = $boolean(Face the target,false)$
+vertical = $boolean(Facing may be up or down,true)$
 
 ------------------------------------------------------------------------------
 
-local PLACE = { b1, b2, b3, b4, b5, b6 }
-
-local LEAVES = {}
-for _, name in ipairs({ "oak_leaves", "spruce_leaves", "birch_leaves",
-    "jungle_leaves", "acacia_leaves", "dark_oak_leaves", "mangrove_leaves",
-    "cherry_leaves", "azalea_leaves", "flowering_azalea_leaves",
-    "pale_oak_leaves" }) do
-  local id = blocks[name]
-  if id ~= nil then LEAVES[id] = true end
-end
-
--- direction from a block to its neighbour
-local DIRS = {
-  { name = "down",  dx = 0,  dy = -1, dz = 0,  opp = "up"    },
-  { name = "up",    dx = 0,  dy = 1,  dz = 0,  opp = "down"  },
-  { name = "north", dx = 0,  dy = 0,  dz = -1, opp = "south" },
-  { name = "south", dx = 0,  dy = 0,  dz = 1,  opp = "north" },
-  { name = "west",  dx = -1, dy = 0,  dz = 0,  opp = "east"  },
-  { name = "east",  dx = 1,  dy = 0,  dz = 0,  opp = "west"  },
-}
-local HORIZONTAL = { "north", "south", "west", "east" }
-
-local function isTarget(b)
-  return b == target or (anyLeaves and LEAVES[b] == true)
-end
-
-local function isAir(b)
-  return b == blocks.air or b == blocks.cave_air
-end
-
--- side of the target the new block sits on ("up" = on top of the target)
-local function sideAllowed(side)
-  if side == "up" then return onTop end
-  if side == "down" then return onBottom end
-  return onSides
-end
-
--- stable random 0..1 per position: repainting does not reshuffle the pattern
-local function rand(px, py, pz, salt)
+function rand(px, py, pz, salt)
   local v = math.sin(px * 12.9898 + py * 78.233 + pz * 37.719
                      + salt * 91.345 + seed * 47.853) * 43758.5453
   v = v - math.floor(v)
@@ -70,58 +34,91 @@ local function rand(px, py, pz, salt)
   return v - math.floor(v)
 end
 
-local function pick(list, n, r)
-  return list[math.min(n, math.floor(r * n) + 1)]
+function isTarget(b)
+  return b == target1 or b == target2 or b == target3
 end
 
-local function hasProperty(b, prop)
-  local ok, v = pcall(getBlockProperty, b, prop)
-  return ok and v ~= nil and v ~= ""
+function isAir(b)
+  return b == blocks.air or b == blocks.cave_air
 end
 
-local function withProp(b, prop)
-  if b == nil then return nil end
-  local ok, v = pcall(withBlockProperty, b, prop)
-  if ok then return v end
-  return nil
+-- directions: 1 down, 2 up, 3 north, 4 south, 5 west, 6 east
+DX  = { 0, 0, 0, 0, -1, 1 }
+DY  = { -1, 1, 0, 0, 0, 0 }
+DZ  = { 0, 0, -1, 1, 0, 0 }
+OPP = { 2, 1, 4, 3, 6, 5 }
+NAME = { "down", "up", "north", "south", "west", "east" }
+HOR = { "north", "south", "west", "east" }
+
+-- d = direction from the target to the new block (2 = new block on top)
+function sideAllowed(d)
+  if d == 2 then return onTop end
+  if d == 1 then return onBottom end
+  return onSides
 end
 
--- block for air spot (ax,ay,az) attached to a target in direction `support`
-local function makeBlock(ax, ay, az, support)
-  local b = pick(PLACE, count, rand(ax, ay, az, 3))
-  if hasProperty(b, "face") then           -- buttons, levers, grindstone
-    if support.name == "down" or support.name == "up" then
-      b = withProp(b, support.name == "down" and "face=floor" or "face=ceiling")
-      b = withProp(b, "facing=" .. pick(HORIZONTAL, 4, rand(ax, ay, az, 4)))
+function chooseBlock(r)
+  local n = math.floor(r * count) + 1
+  if n > count then n = count end
+  if n == 1 then return b1 end
+  if n == 2 then return b2 end
+  if n == 3 then return b3 end
+  if n == 4 then return b4 end
+  if n == 5 then return b5 end
+  return b6
+end
+
+-- block for the air spot (ax,ay,az); `s` = direction from the spot to its target
+function makeBlock(ax, ay, az, s)
+  local b = chooseBlock(rand(ax, ay, az, 3))
+  local away = NAME[OPP[s]]
+  local face = away
+  if lookAt then face = NAME[s] end
+  if mode == 1 then
+    if s == 1 then            -- target below: button on the floor
+      b = withBlockProperty(b, 'face=floor')
+      b = withBlockProperty(b, 'facing=' .. HOR[math.floor(rand(ax, ay, az, 4) * 4) % 4 + 1])
+    elseif s == 2 then        -- target above: button on the ceiling
+      b = withBlockProperty(b, 'face=ceiling')
+      b = withBlockProperty(b, 'facing=' .. HOR[math.floor(rand(ax, ay, az, 4) * 4) % 4 + 1])
     else
-      b = withProp(b, "face=wall")
-      b = withProp(b, "facing=" .. (lookAt and support.name or support.opp))
+      b = withBlockProperty(b, 'face=wall')
+      b = withBlockProperty(b, 'facing=' .. face)
     end
-  elseif hasProperty(b, "facing") then     -- amethyst, end rod, ladder...
-    b = withProp(b, "facing=" .. (lookAt and support.name or support.opp))
+  elseif mode == 2 then
+    if (s == 1 or s == 2) and not vertical then return nil end  -- ladders etc.
+    b = withBlockProperty(b, 'facing=' .. face)
   end
   return b
 end
 
--- Runs on target blocks. Each air spot is decided only by the spot itself, so
--- a spot touching several targets still gets exactly one block.
-local here = getBlock(x, y, z)
-if isTarget(here) then
-  for _, d in ipairs(DIRS) do
-    local ax, ay, az = x + d.dx, y + d.dy, z + d.dz
-    if sideAllowed(d.name) and isAir(getBlock(ax, ay, az))
-        and rand(ax, ay, az, 1) < chance then
-      local found = {}
-      for _, s in ipairs(DIRS) do
-        if sideAllowed(s.opp)
-            and isTarget(getBlock(ax + s.dx, ay + s.dy, az + s.dz)) then
-          found[#found + 1] = s
+-- Runs on every target block and fills the air around it. Each air spot is
+-- decided by the spot itself, so it gets at most one block.
+if isTarget(getBlock(x, y, z)) then
+  for d = 1, 6 do
+    local ax = x + DX[d]
+    local ay = y + DY[d]
+    local az = z + DZ[d]
+    if sideAllowed(d) and isAir(getBlock(ax, ay, az)) and rand(ax, ay, az, 1) < chance then
+      -- all targets touching this air spot -> one of them is picked at random
+      local n = 0
+      local chosen = 0
+      for s = 1, 6 do
+        if sideAllowed(OPP[s]) and isTarget(getBlock(ax + DX[s], ay + DY[s], az + DZ[s])) then
+          n = n + 1
         end
       end
-      local support = pick(found, #found, rand(ax, ay, az, 2))
-      if support ~= nil and support.opp == d.name then  -- chosen target is this one
-        local b = makeBlock(ax, ay, az, support)
-        if b ~= nil then setBlock(ax, ay, az, b) end
+      local k = math.floor(rand(ax, ay, az, 2) * n) + 1
+      local i = 0
+      for s = 1, 6 do
+        if sideAllowed(OPP[s]) and isTarget(getBlock(ax + DX[s], ay + DY[s], az + DZ[s])) then
+          i = i + 1
+          if i == k then chosen = s end
+        end
+      end
+      if chosen == OPP[d] then      -- the picked target is the current one
+        local nb = makeBlock(ax, ay, az, chosen)
+        if nb ~= nil then setBlock(ax, ay, az, nb) end
       end
     end
   end
