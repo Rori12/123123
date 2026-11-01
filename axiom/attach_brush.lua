@@ -6,6 +6,10 @@
 target1 = $blockState(Target 1,oak_leaves)$
 target2 = $blockState(Target 2,birch_leaves)$
 target3 = $blockState(Target 3,spruce_leaves)$
+target4 = $blockState(Target 4,jungle_leaves)$
+target5 = $blockState(Target 5,acacia_leaves)$
+target6 = $blockState(Target 6,dark_oak_leaves)$
+anySolid = $boolean(Any solid block is a target,false)$
 
 count = $int(Blocks to use,6,1,6)$
 b1 = $blockState(Block 1,oak_button)$
@@ -35,7 +39,10 @@ function rand(px, py, pz, salt)
 end
 
 function isTarget(b)
-  return b == target1 or b == target2 or b == target3
+  if b == target1 or b == target2 or b == target3 then return true end
+  if b == target4 or b == target5 or b == target6 then return true end
+  if anySolid and not isAir(b) and isSolid(b) then return true end
+  return false
 end
 
 function isAir(b)
